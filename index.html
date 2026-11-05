@@ -494,7 +494,15 @@ $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;
   e.target.value=''};
 
 render();
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  // новая версия пришла — один раз перезагрузить страницу (если не открыта форма)
+  const had=!!navigator.serviceWorker.controller;let done=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||done)return;done=true;
+    if(document.querySelector('.sheet.on'))return;location.reload()});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update().catch(()=>{})});
+  }).catch(()=>{});
+}
 })();
 </script>
 </body>
