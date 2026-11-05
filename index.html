@@ -149,8 +149,6 @@ a{color:inherit;text-decoration:none}
 .seg{display:flex;background:var(--card);border-radius:14px;padding:3px;margin-bottom:12px}
 .seg button{flex:1;height:38px;border-radius:11px;font-size:14px;font-weight:600;color:var(--mute)}
 .seg button.on{background:var(--soft);color:var(--accent)}
-.chk{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:16px;padding:14px 16px;margin-bottom:12px;font-size:15px}
-.chk input{width:22px;height:22px;accent-color:var(--accent);flex:none}
 .warn{background:var(--soft);color:var(--red);border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:12px}
 .save{width:100%;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;font-size:17px}
 .del{width:100%;height:48px;margin-top:6px;color:var(--red);font-weight:600}
@@ -242,12 +240,10 @@ a{color:inherit;text-decoration:none}
     <div class="seg" id="seg"><button type="button" data-st="">Обычная</button><button type="button" data-st="no">Не пришла</button><button type="button" data-st="x">Отмена</button></div>
   </div>
   <div class="warn hide" id="warn"></div>
-  <label class="chk"><input type="checkbox" id="fCal"><span>Напомнить мне за сутки<br><small style="color:var(--mute)">добавит запись в Календарь iPhone</small></span></label>
   <button class="save" type="submit">Сохранить</button>
   <div id="editBox" class="hide" style="margin-top:14px">
     <div class="btns">
       <button type="button" class="btn" id="again">↻ Записать снова</button>
-      <button type="button" class="btn" id="toCal">📅 В календарь</button>
     </div>
     <button class="del" type="button" id="del">Удалить запись</button>
   </div>
@@ -268,15 +264,13 @@ a{color:inherit;text-decoration:none}
 <script>
 (()=>{
 const $=id=>document.getElementById(id);
-const KEY='nailbook.v1',PREF='nailbook.pref';
+const KEY='nailbook.v1';
 const M=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const MG=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 const COL=['#e0607e','#f0954a','#3fae86','#4a98de','#9677df','#cfa531'];
 let data=[];try{data=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
-let pref={cal:true};try{Object.assign(pref,JSON.parse(localStorage.getItem(PREF)))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){toast('Не удалось сохранить')}};
-const savePref=()=>{try{localStorage.setItem(PREF,JSON.stringify(pref))}catch(e){}};
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
 const p2=n=>String(n).padStart(2,'0');
@@ -301,21 +295,6 @@ const active=r=>r.st!=='x';
 const byTime=(a,b)=>(a.d+a.t).localeCompare(b.d+b.t);
 
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2000)}
-
-/* ---------- iPhone calendar (.ics) ---------- */
-function icsEsc(s){return String(s||'').replace(/\\/g,'\\\\').replace(/[,;]/g,c=>'\\'+c).replace(/\n/g,'\\n')}
-function icsDate(d,t){return d.replace(/-/g,'')+'T'+t.replace(':','')+'00'}
-function addToCalendar(r){
-  const st=pd(r.d);const e=tmin(r.t)+dur(r);const ed=new Date(st);ed.setDate(ed.getDate()+Math.floor(e/1440));
-  const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
-  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Zapisi//RU','CALSCALE:GREGORIAN','BEGIN:VEVENT',
-    'UID:'+r.id+'@zapisi','DTSTAMP:'+stamp,'DTSTART:'+icsDate(r.d,r.t),'DTEND:'+icsDate(iso(ed),mint(e%1440)),
-    'SUMMARY:'+icsEsc('💅 '+r.n+' — '+r.s),'DESCRIPTION:'+icsEsc([r.p?rub(r.p):'',r.ph,r.c].filter(Boolean).join('\n')),
-    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc('Завтра: '+r.n+' в '+r.t),'TRIGGER:-P1D','END:VALARM',
-    'END:VEVENT','END:VCALENDAR'].join('\r\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download='zapis-'+r.d+'.ics';
-  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-}
 
 /* ---------- calendar ---------- */
 function renderHead(){
@@ -468,7 +447,6 @@ function open(r,prefill){
   const src=r||prefill||{};
   F.d.value=src.d||sel;F.t.value=src.t||'';setDur(src.dur||90);F.n.value=src.n||'';F.ph.value=src.ph||'';F.s.value=src.s||'';F.p.value=src.p||'';F.c.value=r?r.c||'':'';
   setCol(r&&r.col!=null?r.col:freeColor(F.d.value));setSt(r?r.st||'':'');
-  $('fCal').checked=r?false:pref.cal;
   if(!F.t.value){const l=data.filter(x=>x.d===F.d.value&&active(x)).sort(byTime).pop();
     F.t.value=l?mint(Math.min(tmin(l.t)+dur(l),23*60)):'10:00'}
   checkOverlap();show('sheet');
@@ -498,11 +476,8 @@ $('sheet').onsubmit=e=>{e.preventDefault();
     n:F.n.value.trim(),ph:F.ph.value.trim(),s:F.s.value.trim(),p:parseInt(F.p.value,10)||0,c:F.c.value.trim(),col:curCol,st:curSt};
   if(!r.d||!r.t||!r.n||!r.s)return;
   const i=data.findIndex(x=>x.id===r.id);if(i>=0)data[i]=r;else data.push(r);save();
-  if(i<0){pref.cal=$('fCal').checked;savePref()}
-  if($('fCal').checked&&r.st!=='x')addToCalendar(r);
   hide();go(r.d);toast(i>=0?'Изменено':'Запись добавлена')};
 $('del').onclick=()=>{if(!confirm('Удалить эту запись?'))return;data=data.filter(x=>x.id!==editId);save();hide();render();toast('Удалено')};
-$('toCal').onclick=()=>{const r=data.find(x=>x.id===editId);if(r)addToCalendar(r)};
 $('again').onclick=()=>{const r=data.find(x=>x.id===editId);if(!r)return;const d=pd(r.d);d.setDate(d.getDate()+21);
   hide();setTimeout(()=>open(null,{d:iso(d),t:r.t,dur:r.dur,n:r.n,ph:r.ph,s:r.s,p:r.p}),200);toast('Через 3 недели — поправьте дату при необходимости')};
 
