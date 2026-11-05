@@ -220,9 +220,6 @@ a{color:inherit;text-decoration:none}
   <div class="fg">
     <div class="fr"><label for="fDate">Дата</label><input type="date" id="fDate" required></div>
     <div class="fr"><label for="fTime">Время</label><input type="time" id="fTime" required></div>
-    <div class="fr"><label for="fDur">Длится</label><select id="fDur">
-      <option value="30">30 мин</option><option value="60">1 час</option><option value="90">1 ч 30 мин</option><option value="120">2 часа</option>
-      <option value="150">2 ч 30 мин</option><option value="180">3 часа</option><option value="240">4 часа</option></select></div>
   </div>
   <div class="fg">
     <div class="fr"><label for="fName">Клиент</label><input id="fName" list="names" placeholder="Имя" required></div>
@@ -284,7 +281,6 @@ const now=()=>{const d=new Date();return iso(d)+'T'+p2(d.getHours())+':'+p2(d.ge
 const tmin=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
 const mint=x=>p2(Math.floor(x/60)%24)+':'+p2(x%60);
 const ck=n=>n.trim().toLowerCase().replace(/ё/g,'е');
-const dur=r=>r.dur||90;
 const colOf=r=>COL[(r.col==null?0:r.col)%COL.length];
 const nice=d=>{const x=pd(d);return x.getDate()+' '+MG[x.getMonth()]};
 
@@ -323,7 +319,7 @@ function renderDay(){
   $('dSum').textContent=act.length?zap(act.length)+' · '+rub(sum):WD[dt.getDay()];
   const n=now();
   $('list').innerHTML=rows.length?rows.map(r=>`<button class="item${(r.d+'T'+r.t)<n?' past':''}${r.st?' x':''}" style="--c:${colOf(r)}" data-id="${r.id}">
-      <span class="t">${r.t}<small>до ${mint(tmin(r.t)+dur(r))}</small></span>
+      <span class="t">${r.t}</span>
       <span class="m"><div class="n">${esc(r.n)}${r.st==='no'?'<span class="tag">не пришла</span>':r.st==='x'?'<span class="tag">отмена</span>':''}</div><div class="s">${esc(r.s)}${r.c?' · '+esc(r.c):''}</div></span>
       <span class="p">${r.p?rub(r.p):''}</span></button>`).join('')
     :'<div class="empty"><b>💅</b>Записей нет.<br>Нажмите «+», чтобы добавить.</div>';
@@ -426,7 +422,7 @@ function show(id){$('ov').classList.add('on');$(id).classList.add('on')}
 function hide(){$('ov').classList.remove('on');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'));document.activeElement&&document.activeElement.blur()}
 $('ov').onclick=hide;document.querySelectorAll('.sheet .x').forEach(b=>b.onclick=hide);
 
-const F={d:$('fDate'),t:$('fTime'),u:$('fDur'),n:$('fName'),ph:$('fPh'),s:$('fSvc'),p:$('fPrice'),c:$('fNote')};
+const F={d:$('fDate'),t:$('fTime'),n:$('fName'),ph:$('fPh'),s:$('fSvc'),p:$('fPrice'),c:$('fNote')};
 const last=(f,v)=>{v=ck(v);for(let i=data.length-1;i>=0;i--)if(ck(data[i][f])===v)return data[i]};
 function fillLists(){
   const by=f=>{const c={};for(const r of data){const k=r[f].trim();if(k)c[k]=(c[k]||0)+1}return Object.keys(c).sort((a,b)=>c[b]-c[a])};
@@ -439,27 +435,25 @@ function setSt(s){curSt=s;$('seg').querySelectorAll('button').forEach(b=>b.class
 $('colors').onclick=e=>{const b=e.target.closest('button');if(b)setCol(+b.dataset.i)};
 $('seg').onclick=e=>{const b=e.target.closest('button');if(b)setSt(b.dataset.st)};
 function freeColor(d,except){const used=new Set(data.filter(r=>r.d===d&&r.id!==except).map(r=>r.col));for(let i=0;i<COL.length;i++)if(!used.has(i))return i;return data.filter(r=>r.d===d).length%COL.length}
-function setDur(v){F.u.value=String(v);if(F.u.value!==String(v))F.u.value='90'}
 
 function open(r,prefill){
   editId=r?r.id:null;fillLists();
   $('fTitle').textContent=r?'Запись':'Новая запись';$('editBox').classList.toggle('hide',!r);$('stWrap').classList.toggle('hide',!r);
   const src=r||prefill||{};
-  F.d.value=src.d||sel;F.t.value=src.t||'';setDur(src.dur||90);F.n.value=src.n||'';F.ph.value=src.ph||'';F.s.value=src.s||'';F.p.value=src.p||'';F.c.value=r?r.c||'':'';
+  F.d.value=src.d||sel;F.t.value=src.t||'';F.n.value=src.n||'';F.ph.value=src.ph||'';F.s.value=src.s||'';F.p.value=src.p||'';F.c.value=r?r.c||'':'';
   setCol(r&&r.col!=null?r.col:freeColor(F.d.value));setSt(r?r.st||'':'');
   if(!F.t.value){const l=data.filter(x=>x.d===F.d.value&&active(x)).sort(byTime).pop();
-    F.t.value=l?mint(Math.min(tmin(l.t)+dur(l),23*60)):'10:00'}
+    F.t.value=l?mint(Math.min(tmin(l.t)+120,23*60)):'10:00'}
   checkOverlap();show('sheet');
 }
 function overlap(){
-  const s=tmin(F.t.value||'0:0'),e=s+(+F.u.value);
-  return data.find(x=>x.id!==editId&&x.d===F.d.value&&active(x)&&tmin(x.t)<e&&s<tmin(x.t)+dur(x));
+  return data.find(x=>x.id!==editId&&x.d===F.d.value&&active(x)&&x.t===F.t.value);
 }
-function checkOverlap(){const o=F.t.value&&overlap();$('warn').classList.toggle('hide',!o);if(o)$('warn').textContent=`⚠️ Пересекается с записью: ${o.n}, ${o.t}–${mint(tmin(o.t)+dur(o))}`}
-[F.d,F.t,F.u].forEach(i=>i.addEventListener('change',checkOverlap));
+function checkOverlap(){const o=F.t.value&&overlap();$('warn').classList.toggle('hide',!o);if(o)$('warn').textContent=`⚠️ На это время уже записана: ${o.n}`}
+[F.d,F.t].forEach(i=>i.addEventListener('change',checkOverlap));
 F.d.addEventListener('change',()=>{if(!editId)setCol(freeColor(F.d.value))});
 $('add').onclick=()=>open(null);
-const applySvc=v=>{const l=last('s',v);if(l){if(!F.p.value&&l.p)F.p.value=l.p;if(l.dur){setDur(l.dur);checkOverlap()}}};
+const applySvc=v=>{const l=last('s',v);if(l){if(!F.p.value&&l.p)F.p.value=l.p;}};
 $('chips').onclick=e=>{const b=e.target.closest('button');if(!b)return;F.s.value=b.dataset.s;F.p.value='';applySvc(b.dataset.s)};
 F.s.addEventListener('change',()=>applySvc(F.s.value));
 F.n.addEventListener('change',()=>{const l=last('n',F.n.value);if(l&&l.ph&&!F.ph.value)F.ph.value=l.ph});
@@ -472,14 +466,14 @@ function fmtPhone(v){let d=v.replace(/\D/g,'');if(!d)return '';
 F.ph.addEventListener('input',e=>{if(e.inputType&&e.inputType.startsWith('delete'))F.ph.value=F.ph.value.replace(/[^\d+()\- ]/g,'');else F.ph.value=fmtPhone(F.ph.value)});
 F.ph.addEventListener('blur',()=>{F.ph.value=fmtPhone(F.ph.value)});
 $('sheet').onsubmit=e=>{e.preventDefault();
-  const r={id:editId||Date.now().toString(36)+Math.random().toString(36).slice(2,6),d:F.d.value,t:F.t.value,dur:+F.u.value,
+  const r={id:editId||Date.now().toString(36)+Math.random().toString(36).slice(2,6),d:F.d.value,t:F.t.value,
     n:F.n.value.trim(),ph:F.ph.value.trim(),s:F.s.value.trim(),p:parseInt(F.p.value,10)||0,c:F.c.value.trim(),col:curCol,st:curSt};
   if(!r.d||!r.t||!r.n||!r.s)return;
   const i=data.findIndex(x=>x.id===r.id);if(i>=0)data[i]=r;else data.push(r);save();
   hide();go(r.d);toast(i>=0?'Изменено':'Запись добавлена')};
 $('del').onclick=()=>{if(!confirm('Удалить эту запись?'))return;data=data.filter(x=>x.id!==editId);save();hide();render();toast('Удалено')};
 $('again').onclick=()=>{const r=data.find(x=>x.id===editId);if(!r)return;const d=pd(r.d);d.setDate(d.getDate()+21);
-  hide();setTimeout(()=>open(null,{d:iso(d),t:r.t,dur:r.dur,n:r.n,ph:r.ph,s:r.s,p:r.p}),200);toast('Через 3 недели — поправьте дату при необходимости')};
+  hide();setTimeout(()=>open(null,{d:iso(d),t:r.t,n:r.n,ph:r.ph,s:r.s,p:r.p}),200);toast('Через 3 недели — поправьте дату при необходимости')};
 
 /* ---------- backup ---------- */
 $('exp').onclick=async()=>{
